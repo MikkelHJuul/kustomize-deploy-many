@@ -75,7 +75,7 @@ for resource in "${resources_list[@]}"; do
 		mv "$resource" "$resource.bak"
 		rm -rf "$resource"
 		touch "$resource"
-		IFS=','
+		IFS="${VARIATIONS_ON_A_K_DELIMITER:,}"
 		head=($(extract_header_from "$resource_name.csv"))
 		sed 1d "$resource_name.csv" | while read line
 		do
