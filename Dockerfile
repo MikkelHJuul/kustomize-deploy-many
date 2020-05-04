@@ -12,6 +12,8 @@ RUN \
 
 COPY --from=yq /usr/bin/yq /usr/bin/yq
 
+RUN mkdir /voak && chown 1001:1001 /voak
 COPY build-yaml.sh .
+WORKDIR /voak
 
-USER 1001
+USER 1000
