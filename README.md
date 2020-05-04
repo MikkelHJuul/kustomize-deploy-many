@@ -26,3 +26,7 @@ it is meant for a pipeline, where the file-tree is scrapped anyway.
 - tip: use `DOLLAR='$'` for a value `MY_VAR` that persist all the way to the deployment: `${DOLLAR}{DOLLAR}{MY_VAR}` or substituted at "global" scope `${DOLLAR}{MY_VAR}`.
 - remember to change deployment names and labels
 - check what you can and can't do in `envsubst`
+- I have no idea how this works with many deployments (I also have no idea how kubernetes or kubectl handles a very very long deployment config) I am usually only using it for a small amount sub 20 deployments
+- there are probably a lot of bugs still
+- there are probably many use cases where this is not working
+- the csv-handling is very plain, it uses `IFS="${VARIATIONS_ON_A_K_DELIMITER}"`, removes a last semicolon if that is set, and requires it to be line-separated (this should be fixed at some point?) 
