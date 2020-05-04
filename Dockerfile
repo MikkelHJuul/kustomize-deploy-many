@@ -12,4 +12,6 @@ RUN \
 
 COPY --from=yq /usr/bin/yq /usr/bin/yq
 
+COPY build-yaml.sh .
+
 USER 1001
