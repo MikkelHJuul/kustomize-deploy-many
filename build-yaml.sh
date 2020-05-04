@@ -66,7 +66,7 @@ function extract_header_from() {
 
 resource_str=$(resources_from_kustomization "$start")
 resources_list=($resource_str)
-echo $resource_str
+debug resources, found: $resource_str
 
 for resource in "${resources_list[@]}"; do
 	resource_name=${resource%.*}
