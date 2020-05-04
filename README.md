@@ -1,4 +1,4 @@
-# Variations of a 'k'
+# Variations on a 'k'
 A docker image to handle deploying with `kubectl kustomize` building using environment-variables defined in a `.csv`-file 
 
 This image is stil WIP.
@@ -16,4 +16,13 @@ build-yaml $folder_with_kustomization
 ```
 deploy $folder_with_kustomization
 ```
-is simply very simple, pipe the built `yaml` into `envsubst` then `kubectl apply -f -`
+is very simple, pipe the built `yaml` into `envsubst` then `kubectl apply -f -`
+
+
+## Notes
+- this breaks the working directory!
+it is meant for a pipeline, where the file-tree is scrapped anyway.
+- Use the flag `$VARIATIONS_ON_A_K_DEBUG` and output debug.log to check debug statements (TODO, more statements, also maybe a function to just output this)
+- tip: use `DOLLAR='$'` for a value `MY_VAR` that persist all the way to the deployment: `${DOLLAR}{DOLLAR}{MY_VAR}` or substituted at "global" scope `${DOLLAR}{MY_VAR}`.
+- remember to change deployment names and labels
+- check what you can and can't do in `envsubst`
