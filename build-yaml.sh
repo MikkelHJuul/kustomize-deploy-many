@@ -2,7 +2,7 @@
 
 debug=0
 
-if ((! -z $VARIATIONS_ON_A_K_DEBUG)); 
+if [ ! -z $VARIATIONS_ON_A_K_DEBUG ]; 
 then
 	debug=1
 	echo "Starting build-yaml.sh" > debug.log
@@ -75,7 +75,7 @@ for resource in "${resources_list[@]}"; do
 		mv "$resource" "$resource.bak"
 		rm -rf "$resource"
 		touch "$resource"
-		IFS="${VARIATIONS_ON_A_K_DELIMITER:,}"
+		IFS=","
 		head=($(extract_header_from "$resource_name.csv"))
 		sed 1d "$resource_name.csv" | while read line
 		do
