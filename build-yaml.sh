@@ -1,9 +1,10 @@
 #!/bin/bash
 
-debug=1
+debug=0
 
-if (($debug)); 
+if ((! -z $VARIATIONS_ON_A_K_DEBUG)); 
 then
+	debug=1
 	echo "Starting build-yaml.sh" > debug.log
 	echo "======================" >> debug.log
 fi
@@ -70,7 +71,7 @@ echo $resource_str
 for resource in "${resources_list[@]}"; do
 	resource_name=${resource%.*}
 	if [ -f $resource_name.csv ]; then
-		debug "... do something ..."
+		debug "backing up resource $resource, read csv"
 		mv "$resource" "$resource.bak"
 		rm -rf "$resource"
 		touch "$resource"
