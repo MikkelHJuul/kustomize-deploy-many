@@ -2,26 +2,11 @@
 
 debug=0
 
-if [ "$3" == "*debug" ]; 
-then
-	debug=1
-	echo "Starting build-yaml.sh" > debug.log
-	echo "======================" >> debug.log
-fi
-
-
 function debug() {
 	if (($debug)); then
 		echo "$1" >> debug.log
 	fi
 }
-
-
-debug "given kustomization location: $1" 
-start="${1%/}"
-if [[ start != $(pwd)* ]]; then
-	start="$(pwd)/$start"
-fi
 
 
 function path_relative_to() {
@@ -34,8 +19,7 @@ function path_relative_to() {
 function resources_from_kustomization() {
 	debug "stat resources: $1"
 	local kustomization_file="$1/kustomization.y*ml"
-	if [ -f $1/kustomization.y*ml ]; 
-	then
+	if [ -f $1/kustomization.y*ml ]; then
 		local resources bases_str bases
 		local replacement="$(echo "$1" | sed 's/\//\\\//g')\/"
 		debug "replacement text: $replacement"
@@ -112,24 +96,37 @@ function clean_up() {
 }
 
 
+if [[ "$3" == *"debug" || "$1" == "debug" ]]; then
+	debug=1
+	echo "Starting build-yaml.sh" > debug.log
+	echo "======================" >> debug.log
+fi
+
+
+debug "given kustomization location: $2" 
+start="${2%/}"
+if [[ start != $(pwd)* ]]; then
+	start="$(pwd)/$start"
+fi
+
 case "$1" in
 build)
 	debug "building kustomization resources"
-	build_yamls $(get_resources "$2")
-	kubectl kustomize "$2"
+	build_yamls $(get_resources "$start")
+	kubectl kustomize "$start"
 ;;
 clean)
 	debug "cleaning up resources"
-	clean_up $(get_resources "$2")
+	clean_up $(get_resources "$start")
 	echo "done!"
 ;;
 debug)
-	debug "$($0 build "$2")"
+	debug "$($0 build "$start")"
 	cat debug.log
 ;;
 deploy)
-	debug "deploying: $2"
-	$0 build $2 | envsubst | kubectl apply -f -
+	debug "deploying: $start"
+	$0 build "$start" | envsubst | kubectl apply -f -
 ;;
 *)
     echo "Usage: $0 {build|clean|debug|deploy} {my/path/to/kustomization/folder} [--debug]"
