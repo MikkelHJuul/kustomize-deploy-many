@@ -10,19 +10,19 @@ Then for each of these files it looks for a similarly named `.csv`-file, when it
 
 ## What can it do?
 ```
-build-yaml $folder_with_kustomization
+variations-on-a-k {build|clean|debug|deploy} {folder_with_kustomization} [--debug]
 ```
-"explode" your `kustomization` using `.csv`-files
-```
-deploy $folder_with_kustomization
-```
+- build: "explode" your `kustomization` using `.csv`-files output kustiomized `yaml`
+- clean: clean up /revert the `kustomization` resources that the other commands has changed
+- debug: print the build-command to debug.log and output this to stdout
+- deploy: call the build-command into ` envsubst` then `kubectl apply -f -` (see notes concerning `DOLLAR`)
+- Use the flag `--debug` and output debug.log to check debug statements 
 is very simple, pipe the built `yaml` into `envsubst` then `kubectl apply -f -`
 
 
 ## Notes
 - this breaks the working directory!
 it is meant for a pipeline, where the file-tree is scrapped anyway.
-- Use the flag `$VARIATIONS_ON_A_K_DEBUG` and output debug.log to check debug statements (TODO, more statements, also maybe a function to just output this)
 - tip: use `DOLLAR='$'` for a value `MY_VAR` that persist all the way to the deployment: `${DOLLAR}{DOLLAR}{MY_VAR}` or substituted at "global" scope `${DOLLAR}{MY_VAR}`.
 - remember to change deployment names and labels
 - check what you can and can't do in `envsubst`
