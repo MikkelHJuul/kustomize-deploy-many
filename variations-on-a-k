@@ -38,13 +38,14 @@ function resources_from_kustomization() {
 	fi
 }
 
-
-function remove_semicolon(){
-	echo "$(echo "$1" | sed 's/;//g')"
+function extract_header_from() {
+	debug "header: $(head -1 "$1")"
+	echo "$(read_csv_line $(head -1 "$1"))"
 }
 
-function extract_header_from() {
-	echo "$(remove_semicolon $(head -1 "$1"))"
+function read_csv_line() {
+	debug "csv hack: $(echo $1 | sed -r 's/("[^",]*),([^",]*")/\1###\2/g' | sed -r 's/,/¤/g' | sed -r 's/###/,/g')"
+	echo "$(echo $1 | sed -r 's/("[^",]*),([^",]*")/\1###\2/g' | sed -r 's/,/¤/g' | sed -r 's/###/,/g')"  # hack to preserve commas
 }
 
 
@@ -64,13 +65,17 @@ function build_yamls() {
 			mv "$resource" "$resource.bak"
 			rm -f "$resource"
 			touch "$resource"
-			IFS=","
-			head=($(extract_header_from "$resource_name.csv"))
+			head_str=$(extract_header_from "$resource_name.csv")
+			IFS="¤" head=($head_str)
+			debug "number of header-items found: ${#head[@]}"
 			sed 1d "$resource_name.csv" | while read line
 			do
-				values=($(remove_semicolon "$line"))
+				IFS="¤" values=($(read_csv_line "$line"))
 				for ((i = 0; i < ${#head[@]}; ++i)); do
-					export "${head[$i]}"="${values[$i]}"
+					if [[ ! -z "${head[$i]}" ]]; then
+						debug "setting environment variable: ${head[$i]}, to value: ${values[$i]}"
+						export "${head[$i]}"="${values[$i]}"
+					fi
 				done 
 				envsubst < "$resource.bak" >> "$resource"
 				echo "" >> "$resource"
@@ -96,19 +101,23 @@ function clean_up() {
 }
 
 
-if [[ "$3" == *"debug" || "$1" == "debug" ]]; then
+if [[ "$3" == *"debug" ]]; then
 	debug=1
-	echo "Starting build-yaml.sh" > debug.log
-	echo "======================" >> debug.log
 fi
+
+function debug_session() {
+	echo "Starting DEBUGGING session" > debug.log
+	echo "======================" >> debug.log
+}
 
 
 debug "given kustomization location: $2" 
 start="${2%/}"
-if [[ start != $(pwd)* ]]; then
+if [[ $start != "$(pwd)"* ]]; then
 	start="$(pwd)/$start"
 fi
 
+debug "verified pwd to path: $start "
 case "$1" in
 build)
 	debug "building kustomization resources"
@@ -119,9 +128,14 @@ clean)
 	debug "cleaning up resources"
 	clean_up $(get_resources "$start")
 	echo "done!"
+	if (($debug)); then
+		cat debug.log
+	fi
 ;;
 debug)
-	debug "$($0 build "$start")"
+	debug_session
+	debug "entered via debug method"
+	$0 build "$start" --debug
 	cat debug.log
 ;;
 deploy)
@@ -132,3 +146,4 @@ deploy)
     echo "Usage: $0 {build|clean|debug|deploy} {my/path/to/kustomization/folder} [--debug]"
     exit 1
 ;;
+esac

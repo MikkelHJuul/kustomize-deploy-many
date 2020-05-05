@@ -13,7 +13,7 @@ RUN \
 
 COPY --from=yq /usr/bin/yq /usr/bin/yq
 
-COPY variations-on-a-k.sh /usr/bin/
+COPY variations-on-a-k /usr/bin/
 WORKDIR /voak
 
 USER 1000
