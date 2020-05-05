@@ -8,8 +8,8 @@ RUN \
   && apt clean \
   && rm -rf /var/lib/apt/lists/* \
   && mkdir /.kube \
-  && chown 1001:1001 /.kube \
-  && mkdir /voak && chown 1001:1001 /voak
+  && chown 1000:1000 /.kube \
+  && mkdir /voak && chown 1000:1000 /voak
 
 COPY --from=yq /usr/bin/yq /usr/bin/yq
 
