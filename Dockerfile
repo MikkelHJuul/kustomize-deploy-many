@@ -13,7 +13,10 @@ RUN \
 COPY --from=yq /usr/bin/yq /usr/bin/yq
 
 RUN mkdir /voak && chown 1001:1001 /voak
-COPY build-yaml.sh .
+COPY variations-on-a-k.sh /usr/bin/
 WORKDIR /voak
 
 USER 1000
+
+ENTRYPOINT ["variations-on-a-k"]
+CMD ["help"]
