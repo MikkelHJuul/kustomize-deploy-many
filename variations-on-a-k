@@ -141,6 +141,9 @@ debug)
 deploy)
 	debug "deploying: $start"
 	$0 build "$start" | envsubst | kubectl apply -f -
+	if (($debug)); then
+		cat debug.log
+	fi
 ;;
 *)
     echo "Usage: $0 {build|clean|debug|deploy} {my/path/to/kustomization/folder} [--debug]"
