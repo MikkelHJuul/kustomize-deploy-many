@@ -8,6 +8,27 @@ function debug() {
 	fi
 }
 
+## common arguments
+files_to_process=
+command=$1
+start="${2%/}"
+if [[ $start != "$(pwd)"* ]]; then
+	start="$(pwd)/$start"
+fi
+if [[ "$3" == *"debug" ]]; then
+	debug=1
+	shift
+fi
+debug "given kustomization location: $1"  #1 because of shift
+debug "verified pwd to path: $start "
+shift
+shift
+if [[ "$1" == "--" ]]; then
+	shift
+	debug "files to be processed: $@"
+	files_to_process=$@
+fi
+
 
 function path_relative_to() {
 	debug "will now find path: $2, relative to: $1"
@@ -49,39 +70,56 @@ function read_csv_line() {
 }
 
 
-function get_resources() {
-	resource_str=$(resources_from_kustomization "$1")
-	debug "resources, found: $resource_str"
-	echo "$resource_str"
-}
-
-function build_yamls() {
-	debug "exploding yamls with matching csv-files"
+function find_csv_resources() {
+	local csv_resources
 	resource_list=($1)
 	for resource in "${resource_list[@]}"; do
 		resource_name=${resource%.*}
-		if [ -f $resource_name.csv ]; then
-			debug "backing up resource $resource, read csv"
-			mv "$resource" "$resource.bak"
-			rm -f "$resource"
-			touch "$resource"
-			head_str=$(extract_header_from "$resource_name.csv")
-			IFS="¤" head=($head_str)
-			debug "number of header-items found: ${#head[@]}"
-			sed 1d "$resource_name.csv" | while read line
-			do
-				IFS="¤" values=($(read_csv_line "$line"))
-				for ((i = 0; i < ${#head[@]}; ++i)); do
-					if [[ ! -z "${head[$i]}" ]]; then
-						debug "setting environment variable: ${head[$i]}, to value: ${values[$i]}"
-						export "${head[$i]}"="${values[$i]}"
-					fi
-				done 
-				envsubst < "$resource.bak" >> "$resource"
-				echo "" >> "$resource"
-				echo "---" >> "$resource"
+		if [[ -z "$resource_name.csv" ]]; then
+			csv_resources="$csv_resources $resource_name.csv"
+		fi
+	done
+	debug "found csv resources: $csv_resources"
+	echo "$csv_resources"
+}
+
+
+function get_resources() {
+	if [[ -z files_to_process ]]; then
+		resource_str=$(resources_from_kustomization "$1")
+		debug "resources, found: $resource_str"
+		echo "$(find_csv_resources "$resource_str")"
+	else 
+		echo "$files_to_process"
+	fi
+}
+
+function build_yamls() {
+	debug "exploding yamls from list of csv-files"
+	resource_list=($1)
+	for resource in "${resource_list[@]}"; do
+		resource_name=$(ls "${resource%.*}".y*ml)
+		debug "backing up resource $resource, read csv"
+		mv "$resource_name" "$resource_name.bak"
+		rm -f "$resource_name"
+		touch "$resource_name"
+		head_str=$(extract_header_from "$resource")
+		IFS="¤" head=($head_str)
+		debug "number of header-items found: ${#head[@]}"
+		sed 1d "$resource" | while read line
+		do
+			IFS="¤" values=($(read_csv_line "$line"))
+			for ((i = 0; i < ${#head[@]}; ++i)); do
+				if [[ ! -z "${head[$i]}" ]]; then
+					debug "setting environment variable: ${head[$i]}, to value: ${values[$i]}"
+					export "${head[$i]}"="${values[$i]}"
+				fi
+			done 
+			envsubst < "$resource" >> "$resource_name"
+			echo "" >> "$resource_name"
+			echo "---" >> "$resource_name"
 			done
-		  	sed -i '$d' "$resource" 
+		  	sed -i '$d' "$resource_name" 
 		fi	
 	done
 	debug "yamls were built"
@@ -101,24 +139,14 @@ function clean_up() {
 }
 
 
-if [[ "$3" == *"debug" ]]; then
-	debug=1
-fi
-
 function debug_session() {
 	echo "Starting DEBUGGING session" > debug.log
 	echo "======================" >> debug.log
 }
 
 
-debug "given kustomization location: $2" 
-start="${2%/}"
-if [[ $start != "$(pwd)"* ]]; then
-	start="$(pwd)/$start"
-fi
 
-debug "verified pwd to path: $start "
-case "$1" in
+case "$command" in
 build)
 	debug "building kustomization resources"
 	build_yamls $(get_resources "$start")
@@ -146,7 +174,7 @@ deploy)
 	fi
 ;;
 *)
-    echo "Usage: $0 {build|clean|debug|deploy} {my/path/to/kustomization/folder} [--debug]"
+    echo "Usage: $0 {build|clean|debug|deploy} {my/path/to/kustomization/folder} [--debug] [-- [files/to/map]] "
     exit 1
 ;;
 esac
