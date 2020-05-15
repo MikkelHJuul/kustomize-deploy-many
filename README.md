@@ -3,6 +3,8 @@ A docker image to handle deploying with `kubectl kustomize` building using envir
 
 This image is stil WIP.
 
+THIS DOCUMENTATION IS NOT UP-TO-DATE, the API changed
+
 ## How it works
 The script looks through your [kustomization](kustomization.io) resource tree and finds every `/some/path/to/file.y*ml` via the given reference of a `kustomization.y*ml`.
 
@@ -31,3 +33,8 @@ it is meant for a pipeline, where the file-tree is scrapped anyway. Use `variati
 - there are probably many use cases where this is not working
 - the csv-handling is very plain, and very hacky: see hacky solution from [terdon|stackoverflow](https://unix.stackexchange.com/questions/149661/handling-comma-in-string-values-in-a-csv-file#answer-149681) which is used to escape commas inside '"' and then replace `,` with `¤` which is used as `IFS='¤' list=($str_with_¤_in_it_in_stead_of_commas)` (`¤` is natively `shift-4` on danish keyboards).
 - last but very important: escape `"` inside text with double backslash - `\\"` (e.g. in json `"\\"string\\":123"` replaces `$MY_VAR` with `"\"string\":123"` which is required for your kubernetes config to be parsed properly).
+
+
+## TODO
+- better debug messages
+- implement a dry-run functionality (wrap clean method with `cat`)

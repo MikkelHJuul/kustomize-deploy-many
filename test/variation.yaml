@@ -1,0 +1,21 @@
+apiVersion: ..myversion..
+kind: ConfigVariation
+variations:
+- targetConfig: config.yaml
+  vary:
+    csvSource: data.csv
+    literals:
+      - JOHN: et
+        INGRID: to
+        MARIE: tre
+      - JOHN: fem
+        INGRID: seks
+        MARIE: syv
+- targetConfig: config2.yaml
+  vary:
+    literals:
+      - NOGET: FOO
+        ANDET: BAR
+        TREDJE: BAZ
+      - NOGET: foo
+        ANDET: bar
