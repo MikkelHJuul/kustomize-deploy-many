@@ -6,22 +6,45 @@ This image is stil WIP.
 THIS DOCUMENTATION IS NOT UP-TO-DATE, the API changed
 
 ## How it works
-The script looks through your [kustomization](kustomization.io) resource tree and finds every `/some/path/to/file.y*ml` via the given reference of a `kustomization.y*ml`.
+The script looks through your [kustomization](kustomization.io) resource tree and finds every base path in your kustomization tree given a
 
 Then for each of these files it looks for a similarly named `.csv`-file, when it matches this it bakups the resource and rewrites this resource for each line of the `.csv`-file replacing along the way the using `envsubst`.
 
 ## What can it do?
 ```
-variations-on-a-k {build|clean|debug|deploy} {folder_with_kustomization} [--debug]
+variations-on-a-k {build|build-folder|kustomize|clean|deploy} [{folder_with_kustomization}] [--debug] [-- [some/variation.yamls ...]]
 ```
-- build: "explode" your `kustomization` using `.csv`-files output kustiomized `yaml`
-- clean: clean up /revert the `kustomization` resources that the other commands has changed
-- debug: print the build-command to debug.log and output this to stdout
-- deploy: call the build-command into ` envsubst` then `kubectl apply -f -` (see notes concerning `DOLLAR`)
-- Use the flag `--debug` and output debug.log to check debug statements 
-is very simple, pipe the built `yaml` into `envsubst` then `kubectl apply -f -`
+- `build`: a command to process `variation.y*ml`-files given in the command (every command except clean uses this command) 
+- `build-folder`: "explode" your `kustomization` using `variation.y*ml`-files in the given `kustomization` tree
+- `clean`: clean up /revert the `kustomization` resources that the other commands has changed
+- `kustomize`: the `kustomize` command is a shorthand to run `kubect kustomize some/folder` after build-command.
+- `deploy`: call the build-command into ` envsubst` then `kubectl apply -f -` (see notes concerning `DOLLAR`)
+- Use the flag `--debug` to output debug info. (this removes the posibility to pipe `kustomize`-command) 
 
-
+### `variation.yaml`
+```yaml
+apiVersion: variation.kustomize.configs.k8s.io/v1beta1  # doesn't matter at the moment
+kind: ConfigVariation
+variations:
+- targetConfig: my-config.yaml  # relative path
+  vary:
+    csvSource: some.csv  # relative path
+    literals:
+      - JOHN: one
+        INGRID: two
+        MARIE: three
+      - JOHN: five
+        INGRID: six
+        MARIE: seven
+- targetConfig: my-other-config.yaml
+  vary:
+    literals:
+      - something: FOO
+        other: BAR
+        else: BAZ
+      - something: foo
+        other: bar
+```
 ## Notes
 - the commands leaves the working directory broken!
 it is meant for a pipeline, where the file-tree is scrapped anyway. Use `variations-on-a-k clean dir/` to revert constructed `.bak`-files.
