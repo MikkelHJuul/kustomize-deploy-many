@@ -10,6 +10,30 @@ variations-on-a-k {build|deploy} [--debug] [any command(s) to be piped into kube
 - Use the flag `--debug` and output debug.log to check debug statements 
 is very simple, pipe the built `yaml` into `envsubst` then `kubectl apply $extra_commands -f -`
 
+### `variation.yaml`
+```yaml
+apiVersion: variation.kustomize.configs.k8s.io/v1beta1  # doesn't matter at the moment
+kind: ConfigVariation
+variations:
+- targetConfig: my-config.yaml  # relative path
+  vary:
+    csvSource: some.csv  # relative path
+    literals:
+      - JOHN: one
+        INGRID: two
+        MARIE: three
+      - JOHN: five
+        INGRID: six
+        MARIE: seven
+- targetConfig: my-other-config.yaml
+  vary:
+    literals:
+      - something: FOO
+        other: BAR
+        else: BAZ
+      - something: foo
+        other: bar
+```
 
 ## Notes
 - tip: use `DOLLAR='$'` for a value `MY_VAR` that persist all the way to the deployment: `${DOLLAR}{DOLLAR}{MY_VAR}` or substituted at "global" scope `${DOLLAR}{MY_VAR}` (for `variations-on-a-k deploy dir/`).
