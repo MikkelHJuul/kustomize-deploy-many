@@ -3,52 +3,40 @@
 debug=0
 OLD_IFS=$IFS
 
+tmpfile=$(mktemp) 
+
+exec {out_W}>"$tmpfile"  
+exec {out_R}<"$tmpfile"  
+rm "$tmpfile"
+
+tmpfile_2=$(mktemp) 
+
+exec {debug_W}>"$tmpfile_2"  
+exec {debug_R}<"$tmpfile_2"  
+rm "$tmpfile_2"
+
+
 function debug() {
 	if (($debug)); then
-		echo "$1" >> debug.log
+		echo "$1" >&$debug_W
 	fi
 }
 
-function set_debug() {
-	debug=1
-	debug_name='--debug '
-	debug "initiated debug from $1"
-}
-
-## common arguments
 files_to_process=
+extra_commands=
 command=$1
 shift
-start=
-if [[ "$1" == *"debug" ]]; then
-	set_debug "early debug"
-	shift
-	debug "variables left: $@"
-fi
-if [[ "$1" == "--" ]]; then
-	shift
-	debug "files processed without kustomization folder: $@"
-	files_to_process=$@
-else
-	start="${1%/}"
-	if [[ $start != "$(pwd)"* ]]; then
-		start="$(pwd)/$start"
+while [ "$1" != "--" ]; do
+	if [[ "$1" == *"debug" ]]; then
+		debug=1
+	else 
+		extra_commands="$extra_commands $1"
 	fi
-	if [[ "$2" == *"debug" ]]; then
-		set_debug "variable after kustomization folder"
-		shift
-	fi
-	debug "values are now: $@"
-	debug "given kustomization location: $start"  #1 because of shift
-	debug "verified pwd to path: $start "
 	shift
-	shift
-	if [[ "$1" == "--" ]]; then
-		shift
-		debug "files to be processed: $@"
-		files_to_process=$@
-	fi
-fi
+done
+shift
+debug "files to be processed: $@"
+files_to_process=$@
 
 
 function path_relative_to() {
@@ -64,31 +52,6 @@ function path_relative_to() {
 	fi
 }
 
-function resources_from_kustomization() {
-	debug "stat resources: $1"
-	local kustomization_file="$1/kustomization.y*ml"
-	if [ -f $1/variation.y*ml -a "$(yq r $1/variation.y*ml kind)" == "ConfigVariation"]; then
-		resources="$(ls $1/variation.y*ml)"
-	else
-		debug "no variation.yaml or the file is not of \"kind: ConfigVariation\""
-	fi
-	if [ -f $1/kustomization.y*ml ]; then
-		local resources bases_str bases
-		bases_str="$(yq r $kustomization_file bases | sed -En 's/- //p')"
-		bases=($bases_str)
-		debug "- bases: $bases_str"
-		for base in "${bases[@]}"; do
-			base="${base%/}"
-			debug "-- base: $base"
-			resources="$resources $(resources_from_kustomization $(path_relative_to $1 $base))"	
-		done
-		debug "resources found: $resources"
-		echo "$resources"
-	else
-		debug "no such file: $kustomization_file"
-	fi
-}
-
 function extract_header_from() {
 	debug "header: $(head -1 "$1")"
 	echo "$(read_csv_line $(head -1 "$1"))"
@@ -97,17 +60,6 @@ function extract_header_from() {
 function read_csv_line() {
 	debug "csv hack: $(echo $1 | sed -r 's/("[^",]*),([^",]*")/\1###\2/g' | sed -r 's/,/¤/g' | sed -r 's/###/,/g')"
 	echo "$(echo $1 | sed -r 's/("[^",]*),([^",]*")/\1###\2/g' | sed -r 's/,/¤/g' | sed -r 's/###/,/g')"  # hack to preserve commas
-}
-
-function backup() {
-	if [ ! -f "$1" ]; then
-		echo -e "\e[31m[ERROR]\e[0m: attempted to back up a folder: $1, this is not permitted"
-		exit 1
-	fi
-	debug "backing up resource $1"
-	mv "$1" "$1.bak"
-	rm -f "$1"
-	touch "$1"
 }
 
 function find_yaml_files() {
@@ -138,9 +90,9 @@ function explode_from_csv_source() {
 				export "${head[$i]}"="${values[$i]}"
 			fi
 		done
-		envsubst < "$2.bak" >> "$2"
-		echo "" >> "$2"
-		echo "---" >> "$2"
+		envsubst < "$2" >&$out_W  
+		echo "" >&$out_W  
+		echo "---" >&$out_W  
 	done
   	for ((i = 0; i < ${#head[@]}; ++i)); do
 		debug "remove exported csv value: ${values[$i]}, for key: ${head[$i]}"
@@ -165,9 +117,9 @@ function explode_from_literals() {
 				debug "setting environment variable: $key, to value: $value"
 				export "$key"="$value"
 			done
-			envsubst < "$2.bak" >> "$2"
-			echo "" >> "$2"
-			echo "---" >> "$2"
+			envsubst < "$2" >&$out_W  
+			echo "" >&$out_W  
+			echo "---" >&$out_W  
 			for literal in "${lit_list[@]}"; do
 				IFS='|' read -r key value <<< "$literal"
 				debug "remove exported literal value: $value, for key: $key"
@@ -195,7 +147,6 @@ function build_yamls() {
 			file_name="${relative_target##*/}"
 			target_config="$(path_relative_to $resource_location $relative_path)/$file_name"
 			debug "targetConfig: $relative_target full path: $target_config"
-			backup "$target_config"
 			relative_csv="$(yq r $resource variations[$i_b_y].vary.csvSource)"
 			if [ ! -z "$relative_csv" ]; then
 				debug "found a relative csv-source: $relative_csv"
@@ -210,70 +161,28 @@ function build_yamls() {
 			debug "literals to send: $literals"
 			unset IFS
 			explode_from_literals "$literals" "$target_config"
-			sed -i '$d' "$target_config" 
 		done
 	done
 	debug "yamls were built"
-}
-
-function() {
-	debug "revertingfile: $1"
-	mv "$1.bak" "$1"
-	rm -f "$1.bak"
-} 
-
-function clean_up() {
-	debug "reverting .bak-files"
-	resource_list=($1)
-	for resource in "${resource_list[@]}"; do
-		if [ -f "$resource.bak" ]; then
-			revert_file "$resource"
-		fi
-	done
-	debug "done reverting backup-files"
 }
 
 case "$command" in
 build)
 	debug "exploding yamls, with command: build"
 	build_yamls "$files_to_process"
-;;
-build-folder)
-	debug "exploding yamls"
-	$0 build "$debug_name" -- $(resources_from_kustomization "$start")
-;;
-kustomize)
-	debug "building kustomization resources"
-	if [ ! -z $files_to_process ]; then
-		$0 build "$debug_name" -- $files_to_process
-	else
-		$0 build-folder "$start" "$debug_name"
-	fi
-	kubectl kustomize "$start"
-;;
-clean)
-	debug "cleaning up resources"
-	if [ ! -z $files_to_process ]; then
-		clean_up $(find_yaml_files $files_to_process)
-	else
-		clean_up $(find_yaml_files $(resources_from_kustomization "$start"))
-	fi
-	echo "done!"
+	sed -i '$d' &$out_W 
+	cat <&$out_R
 ;;
 deploy)
-	debug "deploying: $start"
-	if [ ! -z $files_to_process ]; then
-		$0 kustomize "$start" "$debug_name" -- "$files_to_process" | envsubst | kubectl apply -f -
-	else
-		$0 kustomize "$start" "$debug_name" | envsubst | kubectl apply -f -
-	fi
+	debug "there is no debug-info in the build stage when running 'deploy', run command 'build' in stead"
+	$0 build -- "$files_to_process" | envsubst | kubectl apply "$extra_commands" -f -
 ;;
 *)
-    echo "Usage: $0 {build|build-folder|kustomize|clean|deploy} [my/path/to/kustomization/folder] [--debug] [-- [files/to/map]]"
+    echo "Usage: $0 {build|deploy} [--debug] -- [files/to/map]"
     exit 1
 ;;
 esac
 
 if (($debug)); then
-	cat debug.log
+	cat <&$debug_R
 fi
