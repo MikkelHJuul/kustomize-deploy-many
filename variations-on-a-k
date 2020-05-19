@@ -170,8 +170,7 @@ case "$command" in
 build)
 	debug "exploding yamls, with command: build"
 	build_yamls "$files_to_process"
-	sed -i '$d' &$out_W 
-	cat <&$out_R
+	cat <&$out_R | sed -r '$d'
 ;;
 deploy)
 	debug "there is no debug-info in the build stage when running 'deploy', run command 'build' in stead"
