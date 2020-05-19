@@ -12,7 +12,7 @@ is very simple, pipe the built `yaml` into `envsubst` then `kubectl apply $extra
 
 ### `variation.yaml`
 ```yaml
-apiVersion: variation.kustomize.configs.k8s.io/v1beta1  # doesn't matter at the moment
+apiVersion: variation.configs.k8s.io/v1beta1  # doesn't matter at the moment
 kind: ConfigVariation
 variations:
 - targetConfig: my-config.yaml  # relative path
