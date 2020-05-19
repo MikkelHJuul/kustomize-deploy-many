@@ -38,6 +38,8 @@ shift
 debug "files to be processed: $@"
 files_to_process=$@
 
+kind='ConfigVariation'
+api_version='variation.configs.k8s.io/v1beta1'
 
 function path_relative_to() {
 	debug "will now find path: $2, relative to: $1"
@@ -77,6 +79,13 @@ function find_yaml_files() {
 	echo "$targets"
 }
 
+function to_output() {
+	debug "printing output: $1"
+	envsubst < "$1" >&$out_W
+	echo "" >&$out_W  
+	echo "---" >&$out_W  
+}
+
 function explode_from_csv_source() {
 	head_str=$(extract_header_from "$1")
 	IFS="¤" head=($head_str)
@@ -90,9 +99,7 @@ function explode_from_csv_source() {
 				export "${head[$i]}"="${values[$i]}"
 			fi
 		done
-		envsubst < "$2" >&$out_W  
-		echo "" >&$out_W  
-		echo "---" >&$out_W  
+		to_output "$2"
 	done
   	for ((i = 0; i < ${#head[@]}; ++i)); do
 		debug "remove exported csv value: ${values[$i]}, for key: ${head[$i]}"
@@ -117,9 +124,7 @@ function explode_from_literals() {
 				debug "setting environment variable: $key, to value: $value"
 				export "$key"="$value"
 			done
-			envsubst < "$2" >&$out_W  
-			echo "" >&$out_W  
-			echo "---" >&$out_W  
+			to_output "$2" 
 			for literal in "${lit_list[@]}"; do
 				IFS='|' read -r key value <<< "$literal"
 				debug "remove exported literal value: $value, for key: $key"
@@ -139,6 +144,12 @@ function build_yamls() {
 		if [[ $resource != "$(pwd)"* ]]; then
 			resource="$(pwd)/$resource"
 		fi
+		if [[ "$(yq r $resource kind)" != "$kind" ]]; then
+			echo "resource $resource is not of 'kind': $kind"
+		fi
+		if [[ "$(yq r $resource apiVersion)" != "$api_version" ]]; then
+			echo "resource $resource is not of 'apiVersion': $api_version"
+		fi	
 		debug "building ConfigVariation: $resource"
 		resource_location="${resource%/*}"
 		for i_b_y in $(seq 0 $(("$(yq r $resource variations -l)" -1))); do
@@ -162,15 +173,27 @@ function build_yamls() {
 			unset IFS
 			explode_from_literals "$literals" "$target_config"
 		done
+		for i_e_c in $(seq 0 $(("$(yq r $resource extraConfigs -l)" -1))); do
+			relative_target="$(yq r $resource extraConfigs.[$i_e_c])"
+			relative_path="${relative_target%/*}"
+			file_name="${relative_target##*/}"
+			target_config="$(path_relative_to $resource_location $relative_path)/$file_name"
+			to_output "$target_config"
+		done
 	done
 	debug "yamls were built"
 }
 
 case "$command" in
 build)
-	debug "exploding yamls, with command: build"
-	build_yamls "$files_to_process"
-	cat <&$out_R | sed -r '$d'
+	debug "building yamls"
+	err=$(build_yamls "$files_to_process")
+	if [ ! -z "$err" ]; then
+		echo -e "\033[31m[ERROR]\033[0m: $err"
+		exit 1 #TODO double printing
+	else 
+		cat <&$out_R | sed -r '$d'
+	fi
 ;;
 deploy)
 	debug "there is no debug-info in the build stage when running 'deploy', run command 'build' in stead"
