@@ -33,6 +33,9 @@ variations:
         else: BAZ
       - something: foo
         other: bar
+extraConfigs:
+- some-config.yaml
+- other-config.yaml
 ```
 
 ## Notes
