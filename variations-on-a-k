@@ -39,7 +39,7 @@ debug "files to be processed: $@"
 files_to_process=$@
 
 kind='ConfigVariation'
-api_version='variation.configs.k8s.io/v1beta1'
+api_version='variation.config.k8s.io/v1beta1'
 
 function path_relative_to() {
 	debug "will now find path: $2, relative to: $1"
@@ -82,7 +82,6 @@ function find_yaml_files() {
 function to_output() {
 	debug "printing output: $1"
 	envsubst < "$1" >&$out_W
-	echo "" >&$out_W  
 	echo "---" >&$out_W  
 }
 
