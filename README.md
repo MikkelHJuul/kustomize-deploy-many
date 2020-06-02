@@ -11,7 +11,7 @@ variations-on-a-k {build|deploy} [--debug] [any command(s) to be piped into kube
 
 ### `variation.yaml`
 ```yaml
-apiVersion: variation.configs.k8s.io/v1beta1  # doesn't matter at the moment
+apiVersion: variation.config.k8s.io/v1beta1  #not sure this is allowed for legal reasons, so it may change
 kind: ConfigVariation
 variations:
 - targetConfig: my-config.yaml  # relative path
