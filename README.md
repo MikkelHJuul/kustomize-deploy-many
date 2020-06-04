@@ -23,7 +23,7 @@ variations:
         MARIE: three
       - JOHN: five
         INGRID: six
-        MARIE: seven
+        MARIE: '$JOHN and $INGRID is eleven'
 - targetConfig: my-other-config.yaml
   vary:
     literals:
@@ -43,3 +43,14 @@ extraConfigs:
 - I have no idea how this works with many deployments (I also have no idea how kubernetes or kubectl handles a very very long deployment config) I am usually only using it for a small amount sub 20 deployments
 - the csv-handling is very plain, and very hacky: see hacky solution from [terdon|stackoverflow](https://unix.stackexchange.com/questions/149661/handling-comma-in-string-values-in-a-csv-file#answer-149681) which is used to escape commas inside '"' and then replace `,` with `¤` which is used as `IFS='¤' list=($str_with_¤_in_it_in_stead_of_commas)` (`¤` is natively `shift-4` on danish keyboards).
 - last but very important: escape `"` inside text with double backslash - `\\"` (e.g. in json `MY_VAR: "\\"string\\":123"` replaces `$MY_VAR` with `"\"string\":123"` which is required for your kubernetes config to be parsed properly).
+
+## Releaselog
+### 0.2.1
+- fixed namespacing of apiVersion, from variation.configs... to variation.config (as used by other projects)
+- added feature "in-place parameter expansion" of literals and csv values to be able to handle local expansion at that context point.
+### 0.2.0
+changed from csv-only and kustomize-scanning to its own merits
+### 0.1.2 and 0.1.1
+bugfixes
+### 0.1.0
+first release
