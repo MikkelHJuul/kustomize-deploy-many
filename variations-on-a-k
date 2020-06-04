@@ -95,7 +95,7 @@ function explode_from_csv_source() {
 		for ((i = 0; i < ${#head[@]}; ++i)); do
 			if [[ ! -z "${head[$i]}" ]]; then
 				debug "setting environment variable: ${head[$i]}, to value: ${values[$i]}"
-				export "${head[$i]}"="${values[$i]}"
+				export "${head[$i]}"="$(. <(echo -e echo ${values[$i]}))"
 			fi
 		done
 		to_output "$2"
@@ -121,7 +121,7 @@ function explode_from_literals() {
 			for literal in "${lit_list[@]}"; do
 				IFS='|' read -r key value <<< "$literal"
 				debug "setting environment variable: $key, to value: $value"
-				export "$key"="$value"
+				export "$key"="$(. <(echo -e echo $val2))"
 			done
 			to_output "$2" 
 			for literal in "${lit_list[@]}"; do
