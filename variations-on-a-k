@@ -1,7 +1,6 @@
 #!/bin/bash
 
 debug=0
-OLD_IFS=$IFS
 
 tmpfile=$(mktemp) 
 
@@ -17,7 +16,7 @@ rm "$tmpfile_2"
 
 
 function debug() {
-	if (($debug)); then
+	if ((debug)); then
 		echo "$1" >&$debug_W
 	fi
 }
@@ -35,8 +34,8 @@ while [ "$1" != "--" ]; do
 	shift
 done
 shift
-debug "files to be processed: $@"
-files_to_process=$@
+debug "files to be processed: $*"
+files_to_process="$*"
 
 kind='ConfigVariation'
 api_version='variation.config.k8s.io/v1beta1'
@@ -45,12 +44,12 @@ function path_relative_to() {
 	debug "will now find path: $2, relative to: $1"
 	full_first_path="$(readlink -e $1)"
 	debug "full-path: $full_first_path"
-	if [ -z "$2" -o "$2" == "." -o -f "$full_first_path/$2" ];then 
+	if [ -z "$2" ] || [ "$2" == "." ] || [ -f "$full_first_path/$2" ];then
 		debug "returning initial path"
 		echo "$full_first_path"
 	else
 		debug "finding new full path from a relative path"
-		echo $(cd "$full_first_path" && cd "$(readlink -e $2)" && pwd)
+		cd "$full_first_path" && cd "$(readlink -e "$2")" && pwd
 	fi
 }
 
@@ -69,11 +68,11 @@ function find_yaml_files() {
 	local targets
 	for variation_file in "${variation_files[@]}"; do
 		resource_location="${variation_file%/*}"
-		for k in $(seq 0 $(("$(yq r $variation_file variations -l)" -1))); do
-			relative_target="$(yq r $variation_file variations.[$k].targetConfig)"
+		for k in $(seq 0 $(("$(yq r "$variation_file" variations -l)" -1))); do
+			relative_target="$(yq r "$variation_file" variations.[$k].targetConfig)"
 			relative_path="${relative_target%/*}"
 			file_name="${relative_target##*/}"
-			targets="$targets $(path_relative_to $resource_location $relative_path)/$file_name"
+			targets="$targets $(path_relative_to "$resource_location" "$relative_path")/$file_name"
 		done
 	done
 	echo "$targets"
@@ -86,48 +85,49 @@ function to_output() {
 }
 
 function explode_from_csv_source() {
+  local values
+  unset IFS
 	head_str=$(extract_header_from "$1")
 	IFS="¤" head=($head_str)
 	debug "number of header-items found: ${#head[@]}"
 	sed 1d "$1" | while read line
 	do
+		# shellcheck disable=SC2207
 		IFS="¤" values=($(read_csv_line "$line"))
 		for ((i = 0; i < ${#head[@]}; ++i)); do
-			if [[ ! -z "${head[$i]}" ]]; then
+			if [[ -n "${head[$i]}" ]]; then
 				debug "setting environment variable: ${head[$i]}, to value: ${values[$i]}"
-				export "${head[$i]}"="$(. <(echo -e echo ${values[$i]}))"
+				export "${head[$i]}"="$(envsubst <<< "${values[$i]}")"
 			fi
 		done
 		to_output "$2"
 	done
   	for ((i = 0; i < ${#head[@]}; ++i)); do
 		debug "remove exported csv value: ${values[$i]}, for key: ${head[$i]}"
-		test ! -z "${head[$i]}" && export "${head[$i]}"=
+		test -n "${head[$i]}" && export "${head[$i]}"=
 	done 	
 }
 
 function explode_from_literals() {
-	local literals="$1" str_list lit_list key value
-	if [ ! -z "$literals" ];then 
+	local literals="$1" lit_list
+	if [ -n "$literals" ];then
 		debug "literals: $literals, vs. target: $2"
-		last="$(("$(echo $literals | yq r - -l)" -1))"
+		last="$(("$(echo "$literals" | yq r - -l)" -1))"
+		debug "last item in literal list: $last"
 		for j in $(seq 0 $last); do
 			debug "running index $j"
 			unset IFS
-			yaml_list=$(echo $literals | yq r - "[$j]" -P)
-			str_list=$(echo $yaml_list | sed 's/: /|/g')
-			debug "$j:: elements: $str_list"
-			IFS=' ' read -a lit_list <<< "$str_list"
+			# shellcheck disable=SC2207
+			IFS=$'\n' lit_list=($(yq r - "[$j]" -P <<< "$literals"))
+			debug "literal list items: ${#lit_list[@]}"
 			for literal in "${lit_list[@]}"; do
-				IFS='|' read -r key value <<< "$literal"
-				debug "setting environment variable: $key, to value: $value"
-				export "$key"="$(. <(echo -e echo $val2))"
+				debug "setting environment variable: ${literal%: *}, to value: ${literal#*: }"
+				export "${literal%: *}"="$(envsubst <<< "${literal#*: }")"
 			done
 			to_output "$2" 
 			for literal in "${lit_list[@]}"; do
-				IFS='|' read -r key value <<< "$literal"
-				debug "remove exported literal value: $value, for key: $key"
-				test ! -z "$key" && export "$key"=
+				debug "remove exported literal value: ${literal#*: }, for key: ${literal%: *}"
+				test -n "${literal%: *}" && export "${literal%: *}"=
 			done
 		done
   	else
@@ -138,39 +138,39 @@ function explode_from_literals() {
 
 function build_yamls() {
 	debug "exploding yamls, from list of variation.yaml's"
-	resource_list=($1)
+	resource_list=("$1")
 	for resource in "${resource_list[@]}"; do
 		if [[ $resource != "$(pwd)"* ]]; then
 			resource="$(pwd)/$resource"
 		fi
-		if [[ "$(yq r $resource kind)" != "$kind" ]]; then
+		if [[ "$(yq r "$resource" kind)" != "$kind" ]]; then
 			echo "resource $resource is not of 'kind': $kind"
 		fi
-		if [[ "$(yq r $resource apiVersion)" != "$api_version" ]]; then
-			echo "resource $resource is not of 'apiVersion': $api_version"
+		if [[ "$(yq r "$resource" apiVersion)" != "$api_version" ]]; then
+			echo "resource $resource is not of 'apiVersion': $api_version"$(yq r - "[$j]" -P <<< "$literals")
 		fi	
 		debug "building ConfigVariation: $resource"
 		resource_location="${resource%/*}"
 		for i_b_y in $(seq 0 $(("$(yq r $resource variations -l)" -1))); do
-			relative_target="$(yq r $resource variations.[$i_b_y].targetConfig)"
-			target_config="$(path_relative_to $resource_location ${relative_target%/*})/${relative_target##*/}"
+			relative_target="$(yq r "$resource" variations.[$i_b_y].targetConfig)"
+			target_config="$(path_relative_to "$resource_location" "${relative_target%/*}")/${relative_target##*/}"
 			debug "targetConfig: $relative_target full path: $target_config"
-			relative_csv="$(yq r $resource variations[$i_b_y].vary.csvSource)"
-			if [ ! -z "$relative_csv" ]; then
+			relative_csv="$(yq r "$resource" variations[$i_b_y].vary.csvSource)"
+			if [ -n "$relative_csv" ]; then
 				debug "found a relative csv-source: $relative_csv"
 				debug "relative path: $relative_path and file name: $file_name"
-				csv_source="$(path_relative_to $resource_location ${relative_csv%/*})/${relative_csv##*/}"
+				csv_source="$(path_relative_to "$resource_location" "${relative_csv%/*}")/${relative_csv##*/}"
 				explode_from_csv_source "$csv_source" "$target_config" 
 			fi
 			debug "Handle literals"
-			literals=$(yq r $resource variations[$i_b_y].vary.literals -j)
+			literals=$(yq r "$resource" variations[$i_b_y].vary.literals -j)
 			debug "literals to send: $literals"
 			unset IFS
 			explode_from_literals "$literals" "$target_config"
 		done
-		for i_e_c in $(seq 0 $(("$(yq r $resource extraConfigs -l)" -1))); do
-			relative_config="$(yq r $resource extraConfigs.[$i_e_c])"
-			target_config="$(path_relative_to $resource_location ${relative_config%/*})/${relative_config##*/}"
+		for i_e_c in $(seq 0 $(("$(yq r "$resource" extraConfigs -l)" -1))); do
+			relative_config="$(yq r "$resource" extraConfigs.[$i_e_c])"
+			target_config="$(path_relative_to "$resource_location" "${relative_config%/*}")/${relative_config##*/}"
 			to_output "$target_config"
 		done
 	done
@@ -198,6 +198,6 @@ deploy)
 ;;
 esac
 
-if (($debug)); then
+if ((debug)); then
 	cat <&$debug_R
 fi
