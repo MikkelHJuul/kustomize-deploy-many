@@ -21,19 +21,10 @@ function debug() {
 	fi
 }
 
-files_to_process=
-extra_commands=
-command=$1
-shift
-while [ "$1" != "--" ]; do
-	if [[ "$1" == *"debug" ]]; then
+if [[ "$1" == *"debug" ]]; then
 		debug=1
-	else 
-		extra_commands="$extra_commands $1"
-	fi
-	shift
-done
-shift
+		shift
+fi
 debug "files to be processed: $*"
 files_to_process="$*"
 
@@ -42,7 +33,7 @@ api_version='variation.config.k8s.io/v1beta1'
 
 function path_relative_to() {
 	debug "will now find path: $2, relative to: $1"
-	full_first_path="$(readlink -e $1)"
+	full_first_path="$(readlink -e "$1")"
 	debug "full-path: $full_first_path"
 	if [ -z "$2" ] || [ "$2" == "." ] || [ -f "$full_first_path/$2" ];then
 		debug "returning initial path"
@@ -55,12 +46,12 @@ function path_relative_to() {
 
 function extract_header_from() {
 	debug "header: $(head -1 "$1")"
-	echo "$(read_csv_line $(head -1 "$1"))"
+	read_csv_line "$(head -1 "$1")"
 }
 
 function read_csv_line() {
-	debug "csv hack: $(echo $1 | sed -r 's/("[^",]*),([^",]*")/\1###\2/g' | sed -r 's/,/¤/g' | sed -r 's/###/,/g')"
-	echo "$(echo $1 | sed -r 's/("[^",]*),([^",]*")/\1###\2/g' | sed -r 's/,/¤/g' | sed -r 's/###/,/g')"  # hack to preserve commas
+  debug "csv-line: $(sed -r 's/("[^",]*),([^",]*")/\1###\2/g' <<< "$1" | sed -r 's/,/¤/g' | sed -r 's/###/,/g')"
+	sed -r 's/("[^",]*),([^",]*")/\1###\2/g' <<< "$1" | sed -r 's/,/¤/g' | sed -r 's/###/,/g'  # hack to preserve commas
 }
 
 function find_yaml_files() {
@@ -88,12 +79,12 @@ function explode_from_csv_source() {
   local values
   unset IFS
 	head_str=$(extract_header_from "$1")
-	IFS="¤" head=($head_str)
+	IFS="¤" read -a head <<< "$head_str"
 	debug "number of header-items found: ${#head[@]}"
 	sed 1d "$1" | while read line
 	do
 		# shellcheck disable=SC2207
-		IFS="¤" values=($(read_csv_line "$line"))
+		IFS="¤" read -a values <<< "$(read_csv_line "$line")"
 		for ((i = 0; i < ${#head[@]}; ++i)); do
 			if [[ -n "${head[$i]}" ]]; then
 				debug "setting environment variable: ${head[$i]}, to value: ${values[$i]}"
@@ -147,7 +138,7 @@ function build_yamls() {
 			echo "resource $resource is not of 'kind': $kind"
 		fi
 		if [[ "$(yq r "$resource" apiVersion)" != "$api_version" ]]; then
-			echo "resource $resource is not of 'apiVersion': $api_version"$(yq r - "[$j]" -P <<< "$literals")
+			echo "resource $resource is not of 'apiVersion': $api_version"
 		fi
 		debug "building ConfigVariation: $resource"
 		resource_location="${resource%/*}"
@@ -177,26 +168,15 @@ function build_yamls() {
 	debug "yamls were built"
 }
 
-case "$command" in
-build)
-	debug "building yamls"
-	err=$(build_yamls "$files_to_process")
-	if [ ! -z "$err" ]; then
-		echo -e "\033[31m[ERROR]\033[0m: $err"
-		exit 1 #TODO fix double printing
-	else 
-		cat <&$out_R | sed -r '$d'
-	fi
-;;
-deploy)
-	debug "there is no debug-info in the build stage when running 'deploy', run command 'build' in stead"
-	$0 build -- "$files_to_process" | envsubst | kubectl apply "$extra_commands" -f -
-;;
-*)
-    echo "Usage: $0 {build|deploy} [--debug] -- [files/to/map]"
-    exit 1
-;;
-esac
+
+debug "building yaml"
+err=$(build_yamls "$files_to_process")
+if [ -n "$err" ]; then
+  echo -e "\033[31m[ERROR]\033[0m: $err"
+  exit 1 #TODO fix double printing
+else
+  cat <&$out_R | sed -r '$d'
+fi
 
 if ((debug)); then
 	cat <&$debug_R

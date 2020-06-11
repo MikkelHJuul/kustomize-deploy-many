@@ -19,4 +19,3 @@ WORKDIR /voak
 USER 1000
 
 ENTRYPOINT ["variations-on-a-k"]
-CMD ["help"]
