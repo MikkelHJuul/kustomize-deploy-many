@@ -45,6 +45,8 @@ extraConfigs:
 - last but very important: escape `"` inside text with double backslash - `\\"` (e.g. in json `MY_VAR: "\\"string\\":123"` replaces `$MY_VAR` with `"\"string\":123"` which is required for your kubernetes config to be parsed properly).
 
 ## Releaselog
+### 0.2.2
+- fixed a bug where I used `yq r - -j` which sorted the array alphabetically. Breaking the feature added in 0.2.1.
 ### 0.2.1
 - fixed namespacing of apiVersion, from variation.configs... to variation.config (as used by other projects)
 - added feature "in-place parameter expansion" of literals and csv values to be able to handle local expansion at that context point.

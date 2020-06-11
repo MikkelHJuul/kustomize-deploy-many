@@ -105,7 +105,7 @@ function explode_from_csv_source() {
   	for ((i = 0; i < ${#head[@]}; ++i)); do
 		debug "remove exported csv value: ${values[$i]}, for key: ${head[$i]}"
 		test -n "${head[$i]}" && export "${head[$i]}"=
-	done 	
+	done
 }
 
 function explode_from_literals() {
@@ -118,7 +118,7 @@ function explode_from_literals() {
 			debug "running index $j"
 			unset IFS
 			# shellcheck disable=SC2207
-			IFS=$'\n' lit_list=($(yq r - "[$j]" -P <<< "$literals"))
+			IFS=$'\n' lit_list=($(yq r - "[$j]" <<< "$literals"))
 			debug "literal list items: ${#lit_list[@]}"
 			for literal in "${lit_list[@]}"; do
 				debug "setting environment variable: ${literal%: *}, to value: ${literal#*: }"
@@ -148,7 +148,7 @@ function build_yamls() {
 		fi
 		if [[ "$(yq r "$resource" apiVersion)" != "$api_version" ]]; then
 			echo "resource $resource is not of 'apiVersion': $api_version"$(yq r - "[$j]" -P <<< "$literals")
-		fi	
+		fi
 		debug "building ConfigVariation: $resource"
 		resource_location="${resource%/*}"
 		for i_b_y in $(seq 0 $(("$(yq r $resource variations -l)" -1))); do
@@ -163,7 +163,7 @@ function build_yamls() {
 				explode_from_csv_source "$csv_source" "$target_config" 
 			fi
 			debug "Handle literals"
-			literals=$(yq r "$resource" variations[$i_b_y].vary.literals -j)
+			literals=$(yq r "$resource" variations[$i_b_y].vary.literals)
 			debug "literals to send: $literals"
 			unset IFS
 			explode_from_literals "$literals" "$target_config"
