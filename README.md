@@ -3,7 +3,7 @@ A docker image to do simple templating expansion of a yaml-file
 
 ## What can it do?
 ```
-variations-on-a-k {build|deploy} [--debug] [any command(s) to be piped into kubectl (e.g. -n my-namespace)] -- [files/to/apply]
+variations-on-a-k [--debug] [files/to/apply]
 ```
 - build: "explode" your `kustomization` using `.csv`-files output kustiomized `yaml`
 - deploy: call the build-command into ` envsubst` then `kubectl apply $extra_commands -f -`
@@ -45,6 +45,10 @@ extraConfigs:
 - last but very important: escape `"` inside text with double backslash - `\\"` (e.g. in json `MY_VAR: "\\"string\\":123"` replaces `$MY_VAR` with `"\"string\":123"` which is required for your kubernetes config to be parsed properly).
 
 ## Releaselog
+### 0.3.0
+- removed a dangling, wrongfully tagged docker image.
+- This is now a single entrance script.
+- simplified some code
 ### 0.2.2
 - fixed a bug where I used `yq r - -j` which sorted the array alphabetically. Breaking the feature added in 0.2.1.
 ### 0.2.1
