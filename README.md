@@ -1,13 +1,11 @@
 # Variations on a 'k'
-A docker image to do simple templating expansion of a yaml-file 
+A docker image to do simple templating expansion of yaml-files (or any file for that matter!).
 
-## What can it do?
+## How do I run it
 ```
 variations-on-a-k [--debug] [files/to/apply]
 ```
-- build: "explode" your `kustomization` using `.csv`-files output kustiomized `yaml`
-- deploy: call the build-command into ` envsubst` then `kubectl apply $extra_commands -f -`
-- build your yaml with the `--debug`-flag to check debug statements.
+build your yaml with the `--debug`-flag to check debug statements.
 
 ### `variation.yaml`
 ```yaml
