@@ -1,7 +1,7 @@
 # Variations on a 'k'
 A docker image to do simple templating expansion of yaml-files (or any file for that matter!).
 
-It's also a simple docker image with `bash`, `kubectl`, `yq` and `envsubst` via `gettext-base`.
+It's also a simple docker image with `bash`, `kubectl`, `curl`, `yq` and `envsubst` via `gettext-base`.
 
 ## How do I run it
 ```
