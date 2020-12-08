@@ -1,6 +1,8 @@
 # Variations on a 'k'
 A docker image to do simple templating expansion of yaml-files (or any file for that matter!).
 
+It's also a simple docker image with `bash`, `kubectl`, `yq` and `envsubst` via `gettext-base`.
+
 ## How do I run it
 ```
 variations-on-a-k [--debug] [files/to/apply]
@@ -43,6 +45,10 @@ extraConfigs:
 - last but very important: escape `"` inside text with double backslash - `\\"` (e.g. in json `MY_VAR: "\\"string\\":123"` replaces `$MY_VAR` with `"\"string\":123"` which is required for your kubernetes config to be parsed properly).
 
 ## Releaselog
+### 0.4.0
+- changes to the Dockerfile solely. No longer inherits from `bitnami/kubectl`.
+..uses `ubuntu`, and `kubectl` via `lachlanevenson/k8s-kubectl` shouldn't change anything from 0.3.0.
+..This is the release candidate for 1.0.0. But I may just write this as a go-program in stead.
 ### 0.3.0
 - removed a dangling, wrongfully tagged docker image.
 - This is now a single entrance script.

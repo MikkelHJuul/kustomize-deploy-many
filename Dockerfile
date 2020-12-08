@@ -1,21 +1,13 @@
-FROM mikefarah/yq as yq
-
-FROM bitnami/kubectl
-USER root
+FROM ubuntu
 RUN \
   apt update \
   && apt -y install gettext-base \
   && apt clean \
-  && rm -rf /var/lib/apt/lists/* \
-  && mkdir /.kube \
-  && chown 1000:1000 /.kube \
-  && mkdir /voak && chown 1000:1000 /voak
+  && rm -rf /var/lib/apt/lists/*
 
-COPY --from=yq /usr/bin/yq /usr/bin/yq
-
+COPY --from=mikefarah/yq /usr/bin/yq /usr/bin/yq
+COPY --from=lachlanevenson/k8s-kubectl /usr/local/bin/kubectl /usr/local/bin/kubectl
 COPY variations-on-a-k /usr/bin/
-WORKDIR /voak
-
-USER 1000
+WORKDIR /root
 
 ENTRYPOINT ["variations-on-a-k"]
